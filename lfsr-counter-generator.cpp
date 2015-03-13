@@ -134,9 +134,9 @@ int main(int argc, char * argv[])
 	}
 	
 	if(is_hex)
-		fprintf(stdout, "\ncount = 0x%I64X num_bits=%d\n", count_val,num_bits);
+		fprintf(stdout, "\ncount = 0x%llX num_bits=%d\n", count_val,num_bits);
 	else
-		fprintf(stdout, "\ncount = %I64u num_bits=%d\n", count_val,num_bits);
+		fprintf(stdout, "\ncount = %llu num_bits=%d\n", count_val,num_bits);
 	
 	if(num_bits > 30)
 		fprintf(stdout,"\ngenerating...it can take a long time...\n\n");
@@ -188,7 +188,7 @@ void print_verilog_lfsr_counter(int num_bits,uint64_t lfsr)
 		fprintf(stdout,",lfsr[%d]",lfsr_taps[num_bits][j]-1);
 	}
 	fprintf(stdout,");\n");
-	fprintf(stdout,"assign lfsr_equal = (lfsr == %d'h%X);\n\n",num_bits,lfsr);
+	fprintf(stdout,"assign lfsr_equal = (lfsr == %d'h%llX);\n\n",num_bits,lfsr);
 	fprintf(stdout,"always @(posedge clk,posedge reset) begin\n");
 	fprintf(stdout,"    if(reset) begin\n");
 	fprintf(stdout,"        lfsr <= 0;\r\n");
@@ -256,7 +256,7 @@ void print_vhdl_lfsr_counter(int num_bits,uint64_t lfsr)
 	
 	fprintf(stdout," process(lfsr) begin \n");
 	
-	fprintf(stdout,"  if(lfsr = x\"%X\") then \n",lfsr);
+	fprintf(stdout,"  if(lfsr = x\"%llX\") then \n",lfsr);
 	fprintf(stdout,"   lfsr_equal <= '1';\n");
 	fprintf(stdout,"  else \n");
 	fprintf(stdout,"   lfsr_equal <= '0';\n");

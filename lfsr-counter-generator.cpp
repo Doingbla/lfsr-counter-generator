@@ -1,40 +1,43 @@
 /*
-The MIT License
-
-Copyright (c) 2009 OutputLogic.com
-
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without limitation
-the rights to use, copy, modify, merge, publish, distribute,
-sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall
-be included in all copies or substantial portions of the
-Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
-KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
-WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
-OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
-OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH
-THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+ The MIT License
+ 
+ Copyright (c) 2009 OutputLogic.com
+ 
+ Permission is hereby granted, free of charge, to any person
+ obtaining a copy of this software and associated
+ documentation files (the "Software"), to deal in the
+ Software without restriction, including without limitation
+ the rights to use, copy, modify, merge, publish, distribute,
+ sublicense, and/or sell copies of the Software, and to
+ permit persons to whom the Software is furnished to do so,
+ subject to the following conditions:
+ 
+ The above copyright notice and this permission notice shall
+ be included in all copies or substantial portions of the
+ Software.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+ KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
+ OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
+ OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH
+ THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 
 // lfsr-counter-generator.cpp : Defines the entry point for the console application.
 //
 
-#include "stdafx.h"
+// #include "stdafx.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <inttypes.h>
+#include <iostream>
+
 
 // taps for LFSR polynomials
 static unsigned lfsr_taps[64][6] =
@@ -58,12 +61,12 @@ static unsigned lfsr_taps[64][6] =
 	{60,59},{61,60,46,45},{62,61,6,5},{63,62}
 };
 
-void print_verilog_lfsr_counter(int num_bits,unsigned __int64 lfsr);
-void print_vhdl_lfsr_counter(int num_bits,unsigned __int64 lfsr);
+void print_verilog_lfsr_counter(int num_bits,uint64_t lfsr);
+void print_vhdl_lfsr_counter(int num_bits,uint64_t lfsr);
 
 void print_usage()
 {
-    fprintf(stderr, "%s%s%s",
+	fprintf(stderr, "%s%s%s",
 			"\nusage: \n\tlfsr-counter-generator language count",
 			"\n\nparameters:",
 			"\n\tlanguage: verilog or vhdl"
@@ -72,225 +75,227 @@ void print_usage()
 
 int main(int argc, char * argv[])
 {
-	unsigned __int64 count_val,i,temp,lfsr,cmp_val;
-
-    bool is_hex  = false;
+	uint64_t count_val,i,temp,lfsr,cmp_val;
+	
+	bool is_hex  = false;
 	bool is_vhdl;
-
+	
 	if (argc != 3)
 	{
 		print_usage();
-	    exit(1);
+		exit(1);
 	}
-
+	
 	if(!strcmp(argv[1], "verilog"))
 	{
-        is_vhdl = false;
+		is_vhdl = false;
 	}
 	else if(!strcmp(argv[1], "vhdl"))
 	{
-        is_vhdl = true;
+		is_vhdl = true;
 	}
 	else
 	{
 		print_usage();
 		exit(1);
 	}
-
-
-	count_val = _strtoui64(argv[2], NULL, 10);
-
-	if(count_val == 0 || count_val == _UI64_MAX)
+	
+	std::string input_string = argv[2];
+	
+	count_val = std::stoull(input_string);
+	
+	if(count_val == 0 || count_val == UINT64_MAX)
 	{
-        count_val = _strtoui64(argv[2], NULL, 16);
+		count_val = std::stoi(input_string, 0, 16);
+		
 		is_hex = 1;
 	}
-
-	if(count_val == 0 || count_val == _UI64_MAX)
+	
+	if(count_val == 0 || count_val == UINT64_MAX)
 	{
 		fprintf(stderr,"error: invalid counter value\n");
 		exit(1);
 	}
-
+	
 	if(count_val < 8)
 	{
 		fprintf(stderr,"\n\terror: for counter values less than 8 you can use a binary counter\n");
 		exit(1);
 	}
-
-
+	
+	
 	int num_bits = 0;
 	cmp_val = 1;
-
-    while(count_val >= cmp_val && num_bits < 63)
+	
+	while(count_val >= cmp_val && num_bits < 63)
 	{
-        num_bits++;
+		num_bits++;
 		cmp_val *= 2;
 	}
-
+	
 	if(is_hex)
-	    fprintf(stdout, "\ncount = 0x%I64X num_bits=%d\n", count_val,num_bits);
+		fprintf(stdout, "\ncount = 0x%I64X num_bits=%d\n", count_val,num_bits);
 	else
-	    fprintf(stdout, "\ncount = %I64u num_bits=%d\n", count_val,num_bits);
-
+		fprintf(stdout, "\ncount = %I64u num_bits=%d\n", count_val,num_bits);
+	
 	if(num_bits > 30)
 		fprintf(stdout,"\ngenerating...it can take a long time...\n\n");
 	else
 		fprintf(stdout,"\ngenerating...\n\n");
-
+	
 	lfsr = 0;
-
+	
 	for(i=0;i<count_val-1; i++)
 	{
 		temp = 0;
-
+		
 		// advance LFSR
 		for (int j = 0; j < 6 && lfsr_taps[num_bits][j]; j++)
 			temp ^= (lfsr >> ((lfsr_taps[num_bits][j]) - 1)) & 1;
-
+		
 		lfsr = ((lfsr << 1) & ((1 << num_bits) - 1)) ^ !temp;
 	}
-
+	
 	if(is_vhdl)
-        print_vhdl_lfsr_counter(num_bits,lfsr);
+		print_vhdl_lfsr_counter(num_bits,lfsr);
 	else
-        print_verilog_lfsr_counter(num_bits,lfsr);
-
+		print_verilog_lfsr_counter(num_bits,lfsr);
+	
 	return 0;
 }
 
 //
 // generate verilog code for this LFSR counter
 //
-void print_verilog_lfsr_counter(int num_bits,unsigned __int64 lfsr)
+void print_verilog_lfsr_counter(int num_bits,uint64_t lfsr)
 {
-    fprintf(stdout,"\n//-----------------------------------------------------------------------------");
-    fprintf(stdout,"\n// Copyright (C) 2009 OutputLogic.com ");
-    fprintf(stdout,"\n// This source file may be used and distributed without restriction ");
-    fprintf(stdout,"\n// provided that this copyright statement is not removed from the file ");
-    fprintf(stdout,"\n// and that any derivative work contains the original copyright notice ");
-    fprintf(stdout,"\n// and the associated disclaimer.    ");
-    fprintf(stdout,"\n// THIS SOURCE FILE IS PROVIDED \"AS IS\" AND WITHOUT ANY EXPRESS ");
-    fprintf(stdout,"\n// OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED	");
-    fprintf(stdout,"\n// WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE. ");
+	fprintf(stdout,"\n//-----------------------------------------------------------------------------");
+	fprintf(stdout,"\n// Copyright (C) 2009 OutputLogic.com ");
+	fprintf(stdout,"\n// This source file may be used and distributed without restriction ");
+	fprintf(stdout,"\n// provided that this copyright statement is not removed from the file ");
+	fprintf(stdout,"\n// and that any derivative work contains the original copyright notice ");
+	fprintf(stdout,"\n// and the associated disclaimer.    ");
+	fprintf(stdout,"\n// THIS SOURCE FILE IS PROVIDED \"AS IS\" AND WITHOUT ANY EXPRESS ");
+	fprintf(stdout,"\n// OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED	");
+	fprintf(stdout,"\n// WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE. ");
 	fprintf(stdout,"\n//-----------------------------------------------------------------------------\n");
-    fprintf(stdout, "module lfsr_counter(\n\tinput clk,\n\tinput reset,\n\tinput ce,\n\toutput reg lfsr_done);\n\n");
+	fprintf(stdout, "module lfsr_counter(\n\tinput clk,\n\tinput reset,\n\tinput ce,\n\toutput reg lfsr_done);\n\n");
 	fprintf(stdout, "reg [%d:0] lfsr;\r\nwire d0,lfsr_equal;\n\n",num_bits-1);
-    fprintf(stdout, "xnor(d0");
-
+	fprintf(stdout, "xnor(d0");
+	
 	for (int j = 0; (j < 6) && lfsr_taps[num_bits][j]; j++)
 	{
-	    fprintf(stdout,",lfsr[%d]",lfsr_taps[num_bits][j]-1);
+		fprintf(stdout,",lfsr[%d]",lfsr_taps[num_bits][j]-1);
 	}
-    fprintf(stdout,");\n");
+	fprintf(stdout,");\n");
 	fprintf(stdout,"assign lfsr_equal = (lfsr == %d'h%X);\n\n",num_bits,lfsr);
-    fprintf(stdout,"always @(posedge clk,posedge reset) begin\n");
-    fprintf(stdout,"    if(reset) begin\n");
-    fprintf(stdout,"        lfsr <= 0;\r\n");
-    fprintf(stdout,"        lfsr_done <= 0;\n");
-    fprintf(stdout,"    end\n");
-    fprintf(stdout,"    else begin\n");
-
+	fprintf(stdout,"always @(posedge clk,posedge reset) begin\n");
+	fprintf(stdout,"    if(reset) begin\n");
+	fprintf(stdout,"        lfsr <= 0;\r\n");
+	fprintf(stdout,"        lfsr_done <= 0;\n");
+	fprintf(stdout,"    end\n");
+	fprintf(stdout,"    else begin\n");
+	
 	fprintf(stdout,"        if(ce)\n            lfsr <= lfsr_equal ? %d'h0 : {lfsr[%d:0],d0};\r\n",num_bits,num_bits-2);
-
-    fprintf(stdout,"        lfsr_done <= lfsr_equal;\n");
-    fprintf(stdout,"    end\n");
-    fprintf(stdout,"end\n");
+	
+	fprintf(stdout,"        lfsr_done <= lfsr_equal;\n");
+	fprintf(stdout,"    end\n");
+	fprintf(stdout,"end\n");
 	fprintf(stdout, "endmodule\n");
-
+	
 } // print_verilog_lfsr_counter
 
 
-void print_vhdl_lfsr_counter(int num_bits,unsigned __int64 lfsr)
+void print_vhdl_lfsr_counter(int num_bits,uint64_t lfsr)
 {
-    fprintf(stdout,"\n-------------------------------------------------------------------------------");
-    fprintf(stdout,"\n-- Copyright (C) 2009 OutputLogic.com ");
-    fprintf(stdout,"\n-- This source file may be used and distributed without restriction ");
-    fprintf(stdout,"\n-- provided that this copyright statement is not removed from the file ");
-    fprintf(stdout,"\n-- and that any derivative work contains the original copyright notice ");
-    fprintf(stdout,"\n-- and the associated disclaimer.   ");
-    fprintf(stdout,"\n-- THIS SOURCE FILE IS PROVIDED \"AS IS\" AND WITHOUT ANY EXPRESS ");
-    fprintf(stdout,"\n-- OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED	");
-    fprintf(stdout,"\n-- WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE. ");
-    fprintf(stdout,"\n-------------------------------------------------------------------------------\n");
-
-
-
-  	fprintf(stdout,"library ieee;                   \n");
-  	fprintf(stdout,"use ieee.std_logic_1164.all;    \n");
-  	fprintf(stdout,"use ieee.std_logic_unsigned.all;\n");
-
-  	fprintf(stdout,"entity lfsr_counter is \n");
-  	fprintf(stdout," port (ce , rst, clk : in  std_logic;\n");
-  	fprintf(stdout,"       lfsr_done : out  std_logic);\n");
-  	fprintf(stdout,"end lfsr_counter; \n\n");
-
-
-  	fprintf(stdout,"architecture imp_lfsr_counter of lfsr_counter is\n");
-  	fprintf(stdout,"    signal lfsr: std_logic_vector (%d downto 0);\n",num_bits-1);
-  	fprintf(stdout,"    signal d0, lfsr_equal: std_logic;\n");
-  	fprintf(stdout," begin\n\n");
-
+	fprintf(stdout,"\n-------------------------------------------------------------------------------");
+	fprintf(stdout,"\n-- Copyright (C) 2009 OutputLogic.com ");
+	fprintf(stdout,"\n-- This source file may be used and distributed without restriction ");
+	fprintf(stdout,"\n-- provided that this copyright statement is not removed from the file ");
+	fprintf(stdout,"\n-- and that any derivative work contains the original copyright notice ");
+	fprintf(stdout,"\n-- and the associated disclaimer.   ");
+	fprintf(stdout,"\n-- THIS SOURCE FILE IS PROVIDED \"AS IS\" AND WITHOUT ANY EXPRESS ");
+	fprintf(stdout,"\n-- OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED	");
+	fprintf(stdout,"\n-- WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE. ");
+	fprintf(stdout,"\n-------------------------------------------------------------------------------\n");
+	
+	
+	
+	fprintf(stdout,"library ieee;                   \n");
+	fprintf(stdout,"use ieee.std_logic_1164.all;    \n");
+	fprintf(stdout,"use ieee.std_logic_unsigned.all;\n");
+	
+	fprintf(stdout,"entity lfsr_counter is \n");
+	fprintf(stdout," port (ce , rst, clk : in  std_logic;\n");
+	fprintf(stdout,"       lfsr_done : out  std_logic);\n");
+	fprintf(stdout,"end lfsr_counter; \n\n");
+	
+	
+	fprintf(stdout,"architecture imp_lfsr_counter of lfsr_counter is\n");
+	fprintf(stdout,"    signal lfsr: std_logic_vector (%d downto 0);\n",num_bits-1);
+	fprintf(stdout,"    signal d0, lfsr_equal: std_logic;\n");
+	fprintf(stdout," begin\n\n");
+	
 	fprintf(stdout," d0 <= ");
-
-    bool is_first = true;
-
+	
+	bool is_first = true;
+	
 	for (int j = 0; (j < 6) && lfsr_taps[num_bits][j]; j++)
 	{
-	    if(is_first)
+		if(is_first)
 		{
-	        fprintf(stdout,"lfsr(%d) ",lfsr_taps[num_bits][j]-1);
+			fprintf(stdout,"lfsr(%d) ",lfsr_taps[num_bits][j]-1);
 			is_first = false;
 		}
 		else
 		{
-	        fprintf(stdout,"xnor lfsr(%d) ",lfsr_taps[num_bits][j]-1);
+			fprintf(stdout,"xnor lfsr(%d) ",lfsr_taps[num_bits][j]-1);
 		}
 	}
-    fprintf(stdout,";\n\n");
-
-    fprintf(stdout," process(lfsr) begin \n");
-
+	fprintf(stdout,";\n\n");
+	
+	fprintf(stdout," process(lfsr) begin \n");
+	
 	fprintf(stdout,"  if(lfsr = x\"%X\") then \n",lfsr);
 	fprintf(stdout,"   lfsr_equal <= '1';\n");
 	fprintf(stdout,"  else \n");
 	fprintf(stdout,"   lfsr_equal <= '0';\n");
-    fprintf(stdout,"  end if;\n");
-    fprintf(stdout," end process;  \n\n");
-
-
+	fprintf(stdout,"  end if;\n");
+	fprintf(stdout," end process;  \n\n");
+	
+	
 	fprintf(stdout," process (clk,rst)  begin \n");
 	fprintf(stdout,"  if (rst = '1') then \n");
-
-    fprintf(stdout,"   lfsr <= b\"");
-    for(int j=0; j<num_bits; j++)
+	
+	fprintf(stdout,"   lfsr <= b\"");
+	for(int j=0; j<num_bits; j++)
 	{
-	    fprintf(stdout,"0");
-    }
-    fprintf(stdout,"\";\n");
-    fprintf(stdout,"   lfsr_done <= '0'; \n");
-
-    fprintf(stdout,"  elsif (clk'EVENT and clk = '1') then \n");
-
-    fprintf(stdout,"   lfsr_done <= lfsr_equal; \n");
-
-    fprintf(stdout,"   if (ce = '1') then \n");
+		fprintf(stdout,"0");
+	}
+	fprintf(stdout,"\";\n");
+	fprintf(stdout,"   lfsr_done <= '0'; \n");
+	
+	fprintf(stdout,"  elsif (clk'EVENT and clk = '1') then \n");
+	
+	fprintf(stdout,"   lfsr_done <= lfsr_equal; \n");
+	
+	fprintf(stdout,"   if (ce = '1') then \n");
 	fprintf(stdout,"    if(lfsr_equal = '1') then \n");
 	fprintf(stdout,"     lfsr <= b\"");
-
-    for(int j=0; j<num_bits; j++)
+	
+	for(int j=0; j<num_bits; j++)
 	{
-        fprintf(stdout,"0");
+		fprintf(stdout,"0");
 	}
-
-    fprintf(stdout,"\";\n");
+	
+	fprintf(stdout,"\";\n");
 	fprintf(stdout,"   else  \n");
-
+	
 	fprintf(stdout,"   lfsr <= lfsr(%d downto 0) & d0; \n",(num_bits-2));
 	fprintf(stdout,"   end if; \n");
-    fprintf(stdout,"   end if;  \n");
-    fprintf(stdout,"  end if;  \n");
-    fprintf(stdout," end process; \n");
-    fprintf(stdout,"end architecture imp_lfsr_counter; \n\n");
-
+	fprintf(stdout,"   end if;  \n");
+	fprintf(stdout,"  end if;  \n");
+	fprintf(stdout," end process; \n");
+	fprintf(stdout,"end architecture imp_lfsr_counter; \n\n");
+	
 } // print_vhdl_lfsr_counter
